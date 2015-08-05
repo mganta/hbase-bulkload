@@ -22,6 +22,7 @@ import org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hive.serde2.columnar.BytesRefArrayWritable;
 import org.apache.hadoop.hive.serde2.columnar.BytesRefWritable;
+import org.apache.hadoop.io.compress.SnappyCodec;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
@@ -32,27 +33,29 @@ import org.apache.hive.hcatalog.rcfile.RCFileMapReduceInputFormat;
 
 public class BulkImporter extends Configured implements Tool {
 
-	static String TABLE_NAME = "qualys";
+	static final String TABLE_NAME = "qualys";
+	static final int COLUMN_COUNT = 114;
 
 	static class HBaseMapper extends
 			Mapper<Object, BytesRefArrayWritable, ImmutableBytesWritable, Put> {
-		static final byte[] COLUMN_FAMILY_CURRENT = Bytes.toBytes("curr");
-		static final byte[] COLUMN_FAMILY_HISTORY = Bytes.toBytes("hist");
+		static final byte[] COLUMN_FAMILY_CURRENT = Bytes.toBytes("c");
+		static final byte[] COLUMN_FAMILY_HISTORY = Bytes.toBytes("h");
 
 		@Override
 		public void map(Object key, BytesRefArrayWritable value, Context context)
 				throws IOException, InterruptedException {
 
-			if (value.size() == 110) {
-				byte[] rowKey = RowKeyConverter.makeRowKey(value.get(1)
-						.getData(), value.get(2).getData(), value.get(3)
-						.getData(), value.get(4).getData());
+			if (value.size() == COLUMN_COUNT) {
+				byte[] rowKey = RowKeyConverter.makeRowKey(value.get(2)
+						.getData(), value.get(3).getData(), value.get(4)
+						.getData(), value.get(20).getData());
+
 				Put p = new Put(rowKey);
 
 				for (int i = 0; i < value.size(); i++) {
 					BytesRefWritable v = value.get(i);
-					p.addColumn(COLUMN_FAMILY_CURRENT, Bytes.toBytes("foo"),
-							v.getData());
+					//TO-DO add a column name
+					p.addColumn(COLUMN_FAMILY_CURRENT, Bytes.toBytes(i), v.getData());
 				}
 
 				context.write(new ImmutableBytesWritable(rowKey), p);
@@ -67,28 +70,39 @@ public class BulkImporter extends Configured implements Tool {
 			return -1;
 		}
 		
+		//Hbase config
 		Configuration conf = HBaseConfiguration.create(getConf());
 		Job job = new Job(conf, getClass().getSimpleName());
 		job.setJarByClass(getClass());
+		
+		//input & output paths
 		Path input = new Path(args[0]);
 		FileInputFormat.addInputPath(job, input);
 		Path tmpPath = new Path("/tmp/bulk");
 		FileOutputFormat.setOutputPath(job, tmpPath);
+		
+		//input format settings
 		job.setInputFormatClass(RCFileMapReduceInputFormat.class);
 		RCFileMapReduceInputFormat.addInputPath(job, input);
+		
+		//Map settings
 		job.setMapperClass(HBaseMapper.class);
 		job.setMapOutputKeyClass(ImmutableBytesWritable.class);
 		job.setMapOutputValueClass(Cell.class);
 		job.setNumReduceTasks(0);
 
+		//HFile settings
 		Connection connection = ConnectionFactory.createConnection(conf);
 		Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
 		Admin admin = connection.getAdmin();
 		RegionLocator regionLocator = connection.getRegionLocator(TableName.valueOf(TABLE_NAME));
 
 		try {
-			HFileOutputFormat2.configureIncrementalLoad(job, table,
-					regionLocator);
+			  HFileOutputFormat2.configureIncrementalLoad(job, table, regionLocator);
+			  HFileOutputFormat2.setOutputPath(job, tmpPath);
+			  HFileOutputFormat2.setCompressOutput(job, true);
+			  HFileOutputFormat2.setOutputCompressorClass(job, SnappyCodec.class);
+			
 			if (!job.waitForCompletion(true)) {
 				return 1;
 			}
@@ -97,7 +111,9 @@ public class BulkImporter extends Configured implements Tool {
 			loader.doBulkLoad(tmpPath, (HTable) table);
 
 			FileSystem.get(conf).delete(tmpPath, true);
+			
 			return 0;
+			
 		} finally {
 			table.close();
 			admin.close();

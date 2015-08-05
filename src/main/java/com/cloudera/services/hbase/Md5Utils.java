@@ -16,7 +16,6 @@ public class Md5Utils {
     } catch (NoSuchAlgorithmException e) {
       throw new RuntimeException("MD5 algorithm not available!", e);
     }
-
     return d.digest(Bytes.toBytes(s));
   }
 

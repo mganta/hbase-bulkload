@@ -71,7 +71,7 @@ public class BulkImporter extends Configured implements Tool {
 		}
 		
 		//Hbase config
-		Configuration conf = HBaseConfiguration.create(getConf());
+		Configuration conf = HBaseConfiguration.create();
 		conf.addResource(new Path(args[0]));
 		Job job = new Job(conf, getClass().getSimpleName());
 		job.setJarByClass(getClass());

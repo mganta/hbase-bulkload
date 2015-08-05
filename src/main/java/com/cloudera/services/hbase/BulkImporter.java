@@ -6,7 +6,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
@@ -65,20 +64,21 @@ public class BulkImporter extends Configured implements Tool {
 
 	public int run(String[] args) throws Exception {
 		
-		if (args.length != 1) {
-			System.err.println("Usage: BulkImporter <input>");
+		if (args.length != 3) {
+			System.err.println("Usage: BulkImporter <hbase-site.xml> <input> <output>");
 			return -1;
 		}
 		
 		//Hbase config
 		Configuration conf = HBaseConfiguration.create(getConf());
+		conf.addResource(args[0]);
 		Job job = new Job(conf, getClass().getSimpleName());
 		job.setJarByClass(getClass());
 		
 		//input & output paths
-		Path input = new Path(args[0]);
+		Path input = new Path(args[1]);
 		FileInputFormat.addInputPath(job, input);
-		Path tmpPath = new Path("/tmp/bulk");
+		Path tmpPath = new Path(args[2]);
 		FileOutputFormat.setOutputPath(job, tmpPath);
 		
 		//input format settings
@@ -88,7 +88,7 @@ public class BulkImporter extends Configured implements Tool {
 		//Map settings
 		job.setMapperClass(HBaseMapper.class);
 		job.setMapOutputKeyClass(ImmutableBytesWritable.class);
-		job.setMapOutputValueClass(Cell.class);
+		job.setMapOutputValueClass(Put.class);
 		job.setNumReduceTasks(0);
 
 		//HFile settings

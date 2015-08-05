@@ -50,6 +50,7 @@ public class BulkImporter extends Configured implements Tool {
 						.getData(), value.get(20).getData());
 
 				Put p = new Put(rowKey);
+				
 
 				for (int i = 0; i < value.size(); i++) {
 					BytesRefWritable v = value.get(i);

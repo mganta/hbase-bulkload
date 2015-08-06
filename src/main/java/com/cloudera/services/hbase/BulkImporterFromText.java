@@ -57,16 +57,13 @@ public class BulkImporterFromText extends Configured implements Tool {
 				
 				byte[] rowKey = RowKeyConverter.makeRowKey(words[0].getBytes(), words[1].getBytes(),
 						words[2].getBytes(), words[3].getBytes());
-
 				Put p = new Put(rowKey);
-
-				for (int i = 0; i < words.length; i++) {
-					
+				
+				for (int i = 0; i < words.length; i++) {	
 					//TO-DO add a column name
 					if(words[i] != null)
 					p.addColumn(COLUMN_FAMILY_CURRENT, Bytes.toBytes(i), words[i].getBytes());
 				}
-
 				context.write(new ImmutableBytesWritable(rowKey), p);
 			} else {
 				System.out.println("skipping record " + value.toString());

@@ -52,16 +52,13 @@ public class BulkImporterFromCSVText extends Configured implements Tool {
 				throws IOException, InterruptedException {
 			
 			String[] words = value.toString().split(",");
-
 			if (words.length == COLUMN_COUNT) {
 				
 				byte[] rowKey = RowKeyConverter.makeRowKey(words[0].getBytes(), words[1].getBytes(),
 						words[2].getBytes(), words[3].getBytes());
 
 				Put p = new Put(rowKey);
-
 				for (int i = 0; i < words.length; i++) {
-					
 					//TO-DO add a column name
 					if(words[i] != null)
 					p.addColumn(COLUMN_FAMILY_CURRENT, Bytes.toBytes(i), words[i].getBytes());

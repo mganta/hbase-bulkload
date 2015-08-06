@@ -1,11 +1,11 @@
 package com.cloudera.services.hbase;
-
 import org.apache.hadoop.hbase.util.Bytes;
+
 
 public class RowKeyConverter {
 
 	 private static final int KEY_WIDTH = 4 * Md5Utils.MD5_LENGTH + 4;
-	 private static final int REGION_COUNT = 40;
+	 private static final int REGION_COUNT = 10;
 
 	/**
 	 * @return A row key whose format is:
@@ -16,6 +16,9 @@ public class RowKeyConverter {
 	    byte[] f3hash = Md5Utils.md5sum(new String(f3));
 	    byte[] f4hash = Md5Utils.md5sum(new String(f4));
 	    byte[] rowkey = new byte[KEY_WIDTH];
+
+    //    StringUtils.leftPad(Integer.toString(Math.abs(new String(f1).hashCode() % REGION_COUNT)), 4, "0");
+        
 	    byte [] salt = Bytes.toBytes(new Integer(new Long(System.currentTimeMillis()).hashCode()).shortValue() % REGION_COUNT);
 	    		
 	    int offset = 0;

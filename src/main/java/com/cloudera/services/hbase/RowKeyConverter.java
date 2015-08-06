@@ -4,7 +4,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 
 public class RowKeyConverter {
 
-	 private static final int KEY_WIDTH = 4 * Md5Utils.MD5_LENGTH + 4;
+	 private static final int KEY_WIDTH = 4 * Md5Utils.MD5_LENGTH;
 	 private static final int REGION_COUNT = 10;
 
 	/**
@@ -19,10 +19,10 @@ public class RowKeyConverter {
 
     //    StringUtils.leftPad(Integer.toString(Math.abs(new String(f1).hashCode() % REGION_COUNT)), 4, "0");
         
-	    byte [] salt = Bytes.toBytes(new Integer(new Long(System.currentTimeMillis()).hashCode()).shortValue() % REGION_COUNT);
+	 //   byte [] salt = Bytes.toBytes(new Integer(new Long(System.currentTimeMillis()).hashCode()).shortValue() % REGION_COUNT);
 	    		
 	    int offset = 0;
-	    offset = Bytes.putBytes(rowkey, offset, salt, 0, salt.length); 
+	  //  offset = Bytes.putBytes(rowkey, offset, salt, 0, salt.length); 
 	    offset = Bytes.putBytes(rowkey, offset, f1hash, 0, f1hash.length);
 	    offset = Bytes.putBytes(rowkey, offset, f2hash, 0, f2hash.length);
 	    offset = Bytes.putBytes(rowkey, offset, f3hash, 0, f3hash.length);

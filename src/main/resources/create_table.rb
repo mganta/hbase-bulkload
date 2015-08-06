@@ -1,0 +1,1 @@
+create 'qualys', {NAME => 'c', VERSIONS => 3, COMPRESSION => 'SNAPPY'},{NAME => 'h', VERSIONS => 3, TTL => 7776000, COMPRESSION => 'SNAPPY'},{SPLITS => ['0','1','2','3','4','5','6','7','8','9']}

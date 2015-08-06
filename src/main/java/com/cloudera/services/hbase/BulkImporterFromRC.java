@@ -1,11 +1,17 @@
 package com.cloudera.services.hbase;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
@@ -30,10 +36,10 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.hive.hcatalog.rcfile.RCFileMapReduceInputFormat;
 
-public class BulkImporter extends Configured implements Tool {
+public class BulkImporterFromRC extends Configured implements Tool {
 
 	static final String TABLE_NAME = "qualys";
-	static final int COLUMN_COUNT = 114;
+	static final int COLUMN_COUNT = 9;
 
 	static class HBaseMapper extends
 			Mapper<Object, BytesRefArrayWritable, ImmutableBytesWritable, Put> {
@@ -45,7 +51,7 @@ public class BulkImporter extends Configured implements Tool {
 				throws IOException, InterruptedException {
 
 			if (value.size() == COLUMN_COUNT) {
-				byte[] rowKey = RowKeyConverter.makeRowKey(value.get(2)
+				byte[] rowKey = RowKeyConverter.makeRowKey(value.get(1)
 						.getData(), value.get(3).getData(), value.get(4)
 						.getData(), value.get(20).getData());
 
@@ -59,6 +65,9 @@ public class BulkImporter extends Configured implements Tool {
 				}
 
 				context.write(new ImmutableBytesWritable(rowKey), p);
+				
+			} else {
+				System.out.println("skipping record " + value.get(1).toString());
 			}
 		}
 	}
@@ -90,14 +99,13 @@ public class BulkImporter extends Configured implements Tool {
 		job.setMapperClass(HBaseMapper.class);
 		job.setMapOutputKeyClass(ImmutableBytesWritable.class);
 		job.setMapOutputValueClass(Put.class);
-		job.setNumReduceTasks(0);
+		job.setOutputFormatClass(HFileOutputFormat2.class);
 
 		//HFile settings
 		Connection connection = ConnectionFactory.createConnection(conf);
 		Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
 		Admin admin = connection.getAdmin();
 		RegionLocator regionLocator = connection.getRegionLocator(TableName.valueOf(TABLE_NAME));
-
 		try {
 			  HFileOutputFormat2.configureIncrementalLoad(job, table, regionLocator);
 			  HFileOutputFormat2.setOutputPath(job, tmpPath);
@@ -108,9 +116,21 @@ public class BulkImporter extends Configured implements Tool {
 				return 1;
 			}
 
+			//change permissions so that HBase user can read it
+			FileSystem fs =  FileSystem.get(conf);
+			FsPermission changedPermission=new FsPermission(FsAction.ALL,FsAction.ALL,FsAction.ALL);
+			fs.setPermission(tmpPath, changedPermission);
+			List<String> files = getAllFilePath(tmpPath, fs);
+			for (String file : files) {
+				fs.setPermission(new Path(file), changedPermission);
+				System.out.println("Changing permission for file " + file);
+			}
+			
+			//bulk load hbase files
 			LoadIncrementalHFiles loader = new LoadIncrementalHFiles(conf);
 			loader.doBulkLoad(tmpPath, (HTable) table);
 
+			//delete the hfiles
 			FileSystem.get(conf).delete(tmpPath, true);
 			
 			return 0;
@@ -120,10 +140,32 @@ public class BulkImporter extends Configured implements Tool {
 			admin.close();
 		}
 	}
+	
+	/***
+	 * Given a path, list all folders and files
+	 * @param filePath
+	 * @param fs
+	 * @return
+	 * @throws FileNotFoundException
+	 * @throws IOException
+	 */
+	public static List<String> getAllFilePath(Path filePath, FileSystem fs) throws FileNotFoundException, IOException {
+	    List<String> fileList = new ArrayList<String>();
+	    FileStatus[] fileStatus = fs.listStatus(filePath);
+	    for (FileStatus fileStat : fileStatus) {
+	        if (fileStat.isDirectory()) {
+	        	fileList.add(fileStat.getPath().toString());
+	            fileList.addAll(getAllFilePath(fileStat.getPath(), fs));
+	        } else {
+	            fileList.add(fileStat.getPath().toString());
+	        }
+	    }
+	    return fileList;
+	}
 
 	public static void main(String[] args) throws Exception {
 		int exitCode = ToolRunner.run(HBaseConfiguration.create(),
-				new BulkImporter(), args);
+				new BulkImporterFromRC(), args);
 		System.exit(exitCode);
 	}
 }

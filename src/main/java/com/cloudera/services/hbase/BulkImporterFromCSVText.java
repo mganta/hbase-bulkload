@@ -37,7 +37,7 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
 
-public class BulkImporterFromText extends Configured implements Tool {
+public class BulkImporterFromCSVText extends Configured implements Tool {
 
 	static final String TABLE_NAME = "qualys";
 	static final int COLUMN_COUNT = 9;
@@ -51,7 +51,7 @@ public class BulkImporterFromText extends Configured implements Tool {
 		public void map(LongWritable key, Text value, Context context)
 				throws IOException, InterruptedException {
 			
-			String[] words = value.toString().split("\u0001");
+			String[] words = value.toString().split(",");
 
 			if (words.length == COLUMN_COUNT) {
 				
@@ -100,13 +100,13 @@ public class BulkImporterFromText extends Configured implements Tool {
 		job.setMapperClass(HBaseMapper.class);
 		job.setMapOutputKeyClass(ImmutableBytesWritable.class);
 		job.setMapOutputValueClass(Put.class);
+		job.setOutputFormatClass(HFileOutputFormat2.class);
 
 		//HFile settings
 		Connection connection = ConnectionFactory.createConnection(conf);
 		Table table = connection.getTable(TableName.valueOf(TABLE_NAME));
 		Admin admin = connection.getAdmin();
 		RegionLocator regionLocator = connection.getRegionLocator(TableName.valueOf(TABLE_NAME));
-		//HTable htable = new HTable(conf, TABLE_NAME);
 		try {
 			  HFileOutputFormat2.configureIncrementalLoad(job, table, regionLocator);
 			  HFileOutputFormat2.setOutputPath(job, tmpPath);
@@ -133,7 +133,7 @@ public class BulkImporterFromText extends Configured implements Tool {
 			loader.doBulkLoad(tmpPath, (HTable) table);
 
 			//delete the hfiles
-			//FileSystem.get(conf).delete(tmpPath, true);	
+			FileSystem.get(conf).delete(tmpPath, true);	
 			return 0;
 			
 		} finally {
@@ -166,7 +166,7 @@ public class BulkImporterFromText extends Configured implements Tool {
 
 	public static void main(String[] args) throws Exception {
 		int exitCode = ToolRunner.run(HBaseConfiguration.create(),
-				new BulkImporterFromText(), args);
+				new BulkImporterFromCSVText(), args);
 		System.exit(exitCode);
 	}
 }

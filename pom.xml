@@ -40,6 +40,23 @@
 			<artifactId>hive-hcatalog-core</artifactId>
 			<version>1.1.0-cdh5.4.2</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro</artifactId>
+			<version>1.7.6-cdh5.4.2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro-mapred</artifactId>
+			<classifier>hadoop2</classifier>
+			<version>1.7.6</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro-ipc</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>
@@ -70,6 +87,28 @@
 						<exclude>New*.java</exclude>
 					</excludes>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.avro</groupId>
+				<artifactId>avro-maven-plugin</artifactId>
+				<version>1.7.6</version>
+				<executions>
+					<execution>
+					  <phase>generate-sources</phase>
+					  <goals>
+						<goal>schema</goal>
+					  </goals>
+					  <configuration>
+						<sourceDirectory>${project.basedir}/src/main/resources/</sourceDirectory>
+						<outputDirectory>${project.basedir}/src/main/java/</outputDirectory>
+						<fieldVisibility>PRIVATE</fieldVisibility>
+						<stringType>String</stringType>
+						<includes>
+							<include>**/*.avsc</include>
+						</includes>
+					  </configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
